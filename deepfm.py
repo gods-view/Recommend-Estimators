@@ -27,16 +27,16 @@ class EmbeddingTable:
                           既用于接入DNN的第一屋，也是用于FM二阶交互的隐向量
         :return: None
         """
-        linear_weight = tf.get_variable(name='{}_linear_weight'.format(vocab_name),
-                                        shape=[vocab_size, 1],
-                                        initializer=tf.glorot_normal_initializer(),
-                                        dtype=tf.float32)
+        linear_weight = tf.compat.v1.get_variable(name='{}_linear_weight'.format(vocab_name),
+                                                  shape=[vocab_size, 1],
+                                                  initializer=tf.compat.v1.glorot_normal_initializer(),
+                                                  dtype=tf.float32)
 
         # 二阶（FM）与高阶（DNN）的特征交互，共享embedding矩阵
-        embed_weight = tf.get_variable(name='{}_embed_weight'.format(vocab_name),
-                                       shape=[vocab_size, embed_dim],
-                                       initializer=tf.glorot_normal_initializer(),
-                                       dtype=tf.float32)
+        embed_weight = tf.compat.v1.get_variable(name='{}_embed_weight'.format(vocab_name),
+                                                 shape=[vocab_size, embed_dim],
+                                                 initializer=tf.compat.v1.glorot_normal_initializer(),
+                                                 dtype=tf.float32)
 
         self._weights[vocab_name] = (linear_weight, embed_weight)
 
@@ -82,11 +82,11 @@ def output_logits_from_linear(features, embedding_table, params):
     # 因此，所有field对应的output拼接起来，反正每个field的output都是[batch_size,1]，拼接起来，并不占多少空间
     # whole_linear_output: [batch_size, total_fields]
     whole_linear_output = tf.concat(fields_outputs, axis=1)
-    tf.logging.info("linear output, shape={}".format(whole_linear_output.shape))
+    tf.compat.v1.logging.info("linear output, shape={}".format(whole_linear_output.shape))
 
     # 再映射到final logits（二分类，也是[batch_size,1]）
     # 这时，就不要用任何activation了，特别是ReLU
-    return tf.layers.dense(whole_linear_output, units=1, use_bias=True, activation=None)
+    return tf.compat.v1.layers.dense(whole_linear_output, units=1, use_bias=True, activation=None)
 
 
 def output_logits_from_bi_interaction(features, embedding_table, params):
@@ -116,8 +116,7 @@ def output_logits_from_bi_interaction(features, embedding_table, params):
         # --------- square of embedding
         squared_emb_weights = tf.square(embed_weights)
 
-        squared_sp_values = tf.SparseTensor(indices=sp_values.indices,
-                                            values=tf.square(sp_values.values),
+        squared_sp_values = tf.SparseTensor(indices=sp_values.indices, values=tf.square(sp_values.values),
                                             dense_shape=sp_values.dense_shape)
 
         # squared_embedding: [batch_size, embed_dim]
@@ -130,10 +129,10 @@ def output_logits_from_bi_interaction(features, embedding_table, params):
     sum_embedding_then_square = tf.square(tf.add_n(fields_embeddings))  # [batch_size, embed_dim]
     square_embedding_then_sum = tf.add_n(fields_squared_embeddings)  # [batch_size, embed_dim]
     bi_interaction = 0.5 * (sum_embedding_then_square - square_embedding_then_sum)  # [batch_size, embed_dim]
-    tf.logging.info("bi-interaction, shape={}".format(bi_interaction.shape))
+    tf.compat.v1.logging.info("bi-interaction, shape={}".format(bi_interaction.shape))
 
     # calculate logits
-    logits = tf.layers.dense(bi_interaction, units=1, use_bias=True, activation=None)
+    logits = tf.compat.v1.layers.dense(bi_interaction, units=1, use_bias=True, activation=None)
 
     # 因为FM与DNN共享embedding，所以除了logits，还返回各field的embedding，方便搭建DNN
     return logits, fields_embeddings
@@ -144,15 +143,15 @@ def output_logits_from_dnn(fields_embeddings, params, is_training):
     do_batch_norm = params['batch_norm']
 
     X = tf.concat(fields_embeddings, axis=1)
-    tf.logging.info("initial input to DNN, shape={}".format(X.shape))
+    tf.compat.v1.logging.info("initial input to DNN, shape={}".format(X.shape))
 
     for idx, n_units in enumerate(params['hidden_units'], start=1):
-        X = tf.layers.dense(X, units=n_units, activation=tf.nn.relu)
-        tf.logging.info("layer[{}] output shape={}".format(idx, X.shape))
+        X = tf.compat.v1.layers.dense(X, units=n_units, activation=tf.nn.relu)
+        tf.compat.v1.logging.info("layer[{}] output shape={}".format(idx, X.shape))
 
-        X = tf.layers.dropout(inputs=X, rate=dropout_rate, training=is_training)
+        X = tf.compat.v1.layers.dropout(inputs=X, rate=dropout_rate, training=is_training)
         if is_training:
-            tf.logging.info("layer[{}] dropout {}".format(idx, dropout_rate))
+            tf.compat.v1.logging.info("layer[{}] dropout {}".format(idx, dropout_rate))
 
         if do_batch_norm:
             # BatchNormalization的调用、参数，是从DNNLinearCombinedClassifier源码中拷贝过来的
@@ -161,10 +160,10 @@ def output_logits_from_dnn(fields_embeddings, params, is_training):
             X = batch_norm_layer(X, training=is_training)
 
             if is_training:
-                tf.logging.info("layer[{}] batch-normalize".format(idx))
+                tf.compat.v1.logging.info("layer[{}] batch-normalize".format(idx))
 
     # connect to final logits, [batch_size,1]
-    return tf.layers.dense(X, units=1, use_bias=True, activation=None)
+    return tf.compat.v1.layers.dense(X, units=1, use_bias=True, activation=None)
 
 
 def model_fn(features, labels, mode, params):
@@ -181,7 +180,7 @@ def model_fn(features, labels, mode, params):
 
     dnn_logits = output_logits_from_dnn(fields_embeddings, params, (mode == tf.estimator.ModeKeys.TRAIN))
 
-    general_bias = tf.get_variable(name='general_bias', shape=[1], initializer=tf.constant_initializer(0.0))
+    general_bias = tf.compat.v1.get_variable(name='general_bias', shape=[1], initializer=tf.constant_initializer(0.0))
 
     logits = linear_logits + bi_interact_logits + dnn_logits
     logits = tf.nn.bias_add(logits, general_bias)  # bias_add，获取broadcasting的便利
@@ -193,9 +192,7 @@ def model_fn(features, labels, mode, params):
 
     # ============= predict spec
     if mode == tf.estimator.ModeKeys.PREDICT:
-        return tf.estimator.EstimatorSpec(
-            mode=mode,
-            predictions={'probabilities': probabilities})
+        return tf.estimator.EstimatorSpec(mode=mode, predictions={'probabilities': probabilities})
 
     # ============= evaluate spec
     # 这里不设置regularization，模仿DNNLinearCombinedClassifier的做法, L1/L2 regularization通过设置optimizer=
@@ -207,15 +204,9 @@ def model_fn(features, labels, mode, params):
 
     eval_metric_ops = {'auc': tf.metrics.auc(labels, probabilities)}
     if mode == tf.estimator.ModeKeys.EVAL:
-        return tf.estimator.EstimatorSpec(
-            mode=mode,
-            loss=loss,
-            eval_metric_ops=eval_metric_ops)
+        return tf.estimator.EstimatorSpec(mode=mode, loss=loss, eval_metric_ops=eval_metric_ops)
 
     # ============= train spec
     assert mode == tf.estimator.ModeKeys.TRAIN
-    train_op = params['optimizer'].minimize(loss, global_step=tf.train.get_global_step())
-    return tf.estimator.EstimatorSpec(mode,
-                                      loss=loss,
-                                      train_op=train_op,
-                                      eval_metric_ops=eval_metric_ops)
+    train_op = params['optimizer'].minimize(loss, global_step=tf.compat.v1.train.get_global_step())
+    return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op, eval_metric_ops=eval_metric_ops)

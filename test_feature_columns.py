@@ -1,6 +1,5 @@
 import pandas as pd
 import tensorflow as tf
-from tensorflow import feature_column
 from tensorflow.python.feature_column.feature_column import _LazyBuilder
 
 
@@ -16,7 +15,7 @@ def test_cate_featcol_with_vocablist():
     builder = _LazyBuilder(x_values)  # lazy representation of input
 
     # ================== define ops
-    sparse_featcol = feature_column.categorical_column_with_vocabulary_list(
+    sparse_featcol = tf.compat.v1.feature_column.categorical_column_with_vocabulary_list(
         'x', ['a', 'b', 'c'], dtype=tf.string, default_value=-1)
     x_sparse_tensor = sparse_featcol._get_sparse_tensors(builder)
     # 尽管一行中有重复，但是并没有合并，所以压根就没有weight
@@ -24,14 +23,14 @@ def test_cate_featcol_with_vocablist():
     assert x_sparse_tensor.weight_tensor is None
 
     # indicator_column将sparse tensor转换成dense MHE格式，注意第一行有重复，所以结果应该是multi-hot
-    dense_featcol = feature_column.indicator_column(sparse_featcol)
-    x_dense_tensor = feature_column.input_layer(x_values, [dense_featcol])
+    dense_featcol = tf.compat.v1.feature_column.indicator_column(sparse_featcol)
+    x_dense_tensor = tf.compat.v1.feature_column.input_layer(x_values, [dense_featcol])
 
     # ================== run
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # 必须initialize table，否则报错
-        sess.run(tf.global_variables_initializer())
-        sess.run(tf.tables_initializer())
+        sess.run(tf.compat.v1.global_variables_initializer())
+        sess.run(tf.compat.v1.tables_initializer())
 
         print("************************* sparse tensor")
         # 结果证明：
@@ -68,22 +67,22 @@ def test_weighted_cate_column():
     builder = _LazyBuilder(x_values)  # lazy representation of input
 
     # ================== define ops
-    sparse_id_featcol = feature_column.categorical_column_with_vocabulary_list(
+    sparse_id_featcol = tf.compat.v1.feature_column.categorical_column_with_vocabulary_list(
         'id', ['a', 'b', 'c'], dtype=tf.string, default_value=-1)
-    sparse_featcol = feature_column.weighted_categorical_column(categorical_column=sparse_id_featcol,
-                                                                weight_feature_key='weight')
+    sparse_featcol = tf.compat.v1.feature_column.weighted_categorical_column(categorical_column=sparse_id_featcol,
+                                                                             weight_feature_key='weight')
     x_sparse_tensor = sparse_featcol._get_sparse_tensors(builder)
 
     # indicator_column将sparse tensor转换成dense MHE格式, shape=[batch_size, #tokens]
     # 其中的权重是这个token出现的所有权重的总和
-    dense_featcol = feature_column.indicator_column(sparse_featcol)
-    x_dense_tensor = feature_column.input_layer(x_values, [dense_featcol])
+    dense_featcol = tf.compat.v1.feature_column.indicator_column(sparse_featcol)
+    x_dense_tensor = tf.compat.v1.feature_column.input_layer(x_values, [dense_featcol])
 
     # ================== run
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # 必须initialize table，否则报错
-        sess.run(tf.global_variables_initializer())
-        sess.run(tf.tables_initializer())
+        sess.run(tf.compat.v1.global_variables_initializer())
+        sess.run(tf.compat.v1.tables_initializer())
 
         id_sparse_value, weight_sparse_value = sess.run([x_sparse_tensor.id_tensor, x_sparse_tensor.weight_tensor])
 

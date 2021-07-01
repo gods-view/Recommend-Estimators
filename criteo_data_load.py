@@ -6,7 +6,7 @@ DEFAULT_VALUES = [[0], [''], ['']]
 
 
 def _decode_tsv(line):
-    columns = tf.decode_csv(line, record_defaults=DEFAULT_VALUES, field_delim='\t')
+    columns = tf.compat.v1.decode_csv(line, record_defaults=DEFAULT_VALUES, field_delim='\t')
     y = columns[0]
 
     feat_columns = dict(zip((t[0] for t in COLUMNS_MAX_TOKENS), columns[1:]))
@@ -14,19 +14,19 @@ def _decode_tsv(line):
     for colname, max_tokens in COLUMNS_MAX_TOKENS:
         # 调用string_split时，第一个参数必须是一个list，所以要把columns[colname]放在[]中
         # 这时每个kv还是'k:v'这样的字符串
-        kvpairs = tf.string_split([feat_columns[colname]], ',').values[:max_tokens]
+        kvpairs = tf.compat.v1.string_split([feat_columns[colname]], ',').values[:max_tokens]
 
         # k,v已经拆开, kvpairs是一个SparseTensor，因为每个kvpair格式相同，都是"k:v"
         # 既不会出现"k"，也不会出现"k:v1:v2:v3:..."
         # 所以，这时的kvpairs实际上是一个满阵
-        kvpairs = tf.string_split(kvpairs, ':')
+        kvpairs = tf.compat.v1.string_split(kvpairs, ':')
 
         # kvpairs是一个[n_valid_pairs,2]矩阵
         kvpairs = tf.reshape(kvpairs.values, kvpairs.dense_shape)
 
         feat_ids, feat_vals = tf.split(kvpairs, num_or_size_splits=2, axis=1)
-        feat_ids = tf.string_to_number(feat_ids, out_type=tf.int32)
-        feat_vals = tf.string_to_number(feat_vals, out_type=tf.float32)
+        feat_ids = tf.compat.v1.string_to_number(feat_ids, out_type=tf.int32)
+        feat_vals = tf.compat.v1.string_to_number(feat_vals, out_type=tf.float32)
 
         # 不能调用squeeze, squeeze的限制太多, 当原始矩阵有1行或0行时，squeeze都会报错
         X[colname + "_ids"] = tf.reshape(feat_ids, shape=[-1])

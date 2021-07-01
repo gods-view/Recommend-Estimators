@@ -11,7 +11,7 @@ def get_hparams():
         'categorical': 14739
     }
 
-    optimizer = tf.train.ProximalAdagradOptimizer(
+    optimizer = tf.compat.v1.train.ProximalAdagradOptimizer(
         learning_rate=0.01,
         l1_regularization_strength=0.001,
         l2_regularization_strength=0.001)
@@ -29,8 +29,8 @@ def get_hparams():
 
 
 if __name__ == "__main__":
-    tf.logging.set_verbosity(tf.logging.INFO)
-    tf.set_random_seed(999)
+    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
+    tf.random.set_seed(999)
 
     hparams = get_hparams()
     deepfm = tf.estimator.Estimator(model_fn=model_fn,

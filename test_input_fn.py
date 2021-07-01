@@ -15,14 +15,14 @@ def test_load_field_multi_tokens():
 
     # ------------- parse
     def _parse_tsv(line):
-        columns = tf.decode_csv(line, record_defaults=col_defaults, field_delim='\t')
+        columns = tf.compat.v1.decode_csv(line, record_defaults=col_defaults, field_delim='\t')
         tmp = dict(zip(max_tokens.keys(), columns))
 
         features = {}
         for colname, max_pkgs_per_user in max_tokens.items():
             value = tmp[colname]
             # 按最大长度进行截断
-            features[colname] = tf.string_split([value], ',').values[:max_pkgs_per_user]
+            features[colname] = tf.compat.v1.string_split([value], ',').values[:max_pkgs_per_user]
 
         return features
 
@@ -30,8 +30,7 @@ def test_load_field_multi_tokens():
     dataset = tf.data.TextLineDataset('dataset/test/test1.tsv').skip(1)  # skip the header
     dataset = dataset.map(_parse_tsv, num_parallel_calls=4)
 
-    dataset = dataset.apply(tf.contrib.data.dense_to_sparse_batch(batch_size=2,
-                                                                  row_shape=max_tokens))
+    dataset = dataset.apply(tf.data.Dataset.dense_to_sparse_batch(batch_size=2, row_shape=max_tokens))
 
 
 def test_parse_field_feature_value():
